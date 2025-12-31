@@ -37,6 +37,10 @@ class AudioSource {
       kurtosis: 0,       // spectralKurtosis
       pitch: null,       // detected note name (C, D, E, etc.)
       octave: null,      // detected octave
+      dominantFrequency: 0,  // peak frequency from FFT (Hz)
+      dominantBin: 0,        // which FFT bin has the most energy
+      bassFrequency: 0,      // hue value (0-360) mapped from peak frequency
+      bassEnergy: 0,         // energy of peak (0-1)
       frequencyData: null,
       timeDomainData: null,
     };
@@ -70,8 +74,8 @@ class AudioSource {
 
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.smoothingTimeConstant = 0.8;
-      this.analyser.fftSize = 2048;
+      this.analyser.smoothingTimeConstant = 0; // No smoothing - instant response
+      this.analyser.fftSize = 8192; // Higher resolution for bass frequencies
 
       this.source = this.audioContext.createMediaStreamSource(stream);
       this.source.connect(this.analyser);
@@ -152,8 +156,8 @@ class AudioSource {
     try {
       this.audioContext = new (window.AudioContext || window.webkitAudioContext)();
       this.analyser = this.audioContext.createAnalyser();
-      this.analyser.smoothingTimeConstant = 0.8;
-      this.analyser.fftSize = 2048;
+      this.analyser.smoothingTimeConstant = 0; // No smoothing - instant response
+      this.analyser.fftSize = 8192; // Higher resolution for bass frequencies
 
       // This can throw if element already has a source
       this.source = this.audioContext.createMediaElementSource(audioElement);
@@ -163,11 +167,12 @@ class AudioSource {
       // Initialize Meyda analyzer
       this._initMeyda(this.source);
 
-      // Start polling for data
-      this._startPolling();
-
+      // Set initialized BEFORE starting polling (poll checks this flag)
       this.isInitialized = true;
       this.isExternal = true;
+
+      // Start polling for data
+      this._startPolling();
     } catch (err) {
       // Clean up partial state
       this._cleanupPartialInit();
@@ -270,6 +275,53 @@ class AudioSource {
 
     this.analyser.getByteFrequencyData(this._audioData.frequencyData);
     this.analyser.getByteTimeDomainData(this._audioData.timeDomainData);
+
+    // Find dominant frequency from FFT
+    this._updateDominantFrequency();
+  }
+
+  /**
+   * Find the dominant (peak) frequency from FFT data
+   * Also finds dominant bass frequency (20-120Hz) for color mapping
+   * @private
+   */
+  _updateDominantFrequency() {
+    if (!this._audioData.frequencyData || !this.audioContext) return;
+
+    const freqData = this._audioData.frequencyData;
+    const sampleRate = this.audioContext.sampleRate;
+    const binCount = freqData.length;
+    const nyquist = sampleRate / 2;
+    const binSize = nyquist / binCount;
+
+    // Find loudest frequency in BASS range only (20-120Hz)
+    // Map that frequency directly to hue - NO smoothing
+    const minBassHz = 20;
+    const maxBassHz = 120;
+    const minBassBin = Math.floor(minBassHz / binSize);
+    const maxBassBin = Math.ceil(maxBassHz / binSize);
+
+    let maxVal = 0;
+    let peakBin = minBassBin;
+
+    for (let i = minBassBin; i <= Math.min(maxBassBin, binCount - 1); i++) {
+      if (freqData[i] > maxVal) {
+        maxVal = freqData[i];
+        peakBin = i;
+      }
+    }
+
+    // Convert bin to frequency
+    const peakFreq = peakBin * binSize;
+
+    // Map 20-120Hz to hue 0-360 (linear, simple)
+    const normalized = (peakFreq - minBassHz) / (maxBassHz - minBassHz);
+    const hue = normalized * 360;
+
+    this._audioData.dominantFrequency = peakFreq;
+    this._audioData.dominantBin = peakBin;
+    this._audioData.bassFrequency = hue;
+    this._audioData.bassEnergy = maxVal / 255;
   }
 
   /**
@@ -403,6 +455,10 @@ class AudioSource {
   get kurtosis() { return this._audioData.kurtosis; }
   get pitch() { return this._audioData.pitch; }
   get octave() { return this._audioData.octave; }
+  get dominantFrequency() { return this._audioData.dominantFrequency; }
+  get dominantBin() { return this._audioData.dominantBin; }
+  get bassFrequency() { return this._audioData.bassFrequency; }
+  get bassEnergy() { return this._audioData.bassEnergy; }
   get frequencyData() { return this._audioData.frequencyData; }
   get timeDomainData() { return this._audioData.timeDomainData; }
 

@@ -259,18 +259,15 @@ export class BarsVisualizer extends BaseVisualizer {
         smoothFactor
       );
 
-      // Update bar scale
+      // Update bar scale (use optional chaining to prevent minifier optimization)
       const height = Math.max(this._smoothedHeights[i] * maxHeight, 0.01);
-      const bar = this.bars[i];
-      if (bar) {
-        bar.scale.y = height;
+      if (this.bars[i]?.scale) {
+        this.bars[i].scale.y = height;
       }
 
-      // Update opacity based on height and energy
-      const mat = this.barMaterials[i];
-      if (mat) {
-        const baseOpacity = 0.6 + this._smoothedHeights[i] * 0.4;
-        mat.opacity = baseOpacity;
+      // Update opacity based on height and energy (use optional chaining)
+      if (this.barMaterials[i]) {
+        this.barMaterials[i].opacity = 0.6 + this._smoothedHeights[i] * 0.4;
       }
     }
   }
@@ -323,20 +320,14 @@ export class BarsVisualizer extends BaseVisualizer {
 
     const len = Math.min(this.reflectionBars.length, this.bars.length);
     for (let i = 0; i < len; i++) {
-      const refBar = this.reflectionBars[i];
-      const mainBar = this.bars[i];
-      const refMat = this.reflectionMaterials[i];
-      const mainMat = this.barMaterials[i];
-
-      if (refBar && mainBar) {
-        // Reflection height matches main bar but scaled down
-        refBar.scale.y = mainBar.scale.y * 0.3;
+      // Use optional chaining to prevent minifier from removing null checks
+      if (this.reflectionBars[i]?.scale && this.bars[i]?.scale) {
+        this.reflectionBars[i].scale.y = this.bars[i].scale.y * 0.3;
       }
 
-      if (refMat && mainMat) {
-        // Match color with reduced opacity
-        refMat.color.copy(mainMat.color);
-        refMat.opacity = mainMat.opacity * 0.25;
+      if (this.reflectionMaterials[i] && this.barMaterials[i]) {
+        this.reflectionMaterials[i].color.copy(this.barMaterials[i].color);
+        this.reflectionMaterials[i].opacity = this.barMaterials[i].opacity * 0.25;
       }
     }
   }

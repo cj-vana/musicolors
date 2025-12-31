@@ -32,11 +32,13 @@ import { WaveformVisualizer } from './WaveformVisualizer.js';
 import { CircularVisualizer } from './CircularVisualizer.js';
 import { TopographicVisualizer } from './TopographicVisualizer.js';
 import { ParticlesVisualizer } from './ParticlesVisualizer.js';
+import { SphereVisualizer } from './SphereVisualizer.js';
 
 /**
  * Available visualizer presets
  */
 export const PRESETS = {
+  sphere: SphereVisualizer,
   minimal: MinimalVisualizer,
   bars: BarsVisualizer,
   waveform: WaveformVisualizer,
@@ -49,6 +51,11 @@ export const PRESETS = {
  * Preset information for UI display
  */
 export const PRESET_INFO = {
+  sphere: {
+    name: 'Sphere',
+    description: 'Pulsing sphere with energy-reactive gradient colors',
+    icon: 'sphere',
+  },
   minimal: {
     name: 'Minimal',
     description: 'Subtle ambient glow that pulses with the music',
@@ -294,6 +301,7 @@ export class Visualizer {
 export {
   AudioSource,
   BaseVisualizer,
+  SphereVisualizer,
   MinimalVisualizer,
   BarsVisualizer,
   WaveformVisualizer,

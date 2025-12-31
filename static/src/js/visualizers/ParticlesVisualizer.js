@@ -204,6 +204,9 @@ export class ParticlesVisualizer extends BaseVisualizer {
    * @private
    */
   _updateParticlePositions(freqData) {
+    // Guard against uninitialized geometry
+    if (!this._geometry?.attributes?.position?.array || !this._originalPositions) return;
+
     const positions = this._geometry.attributes.position.array;
     const original = this._originalPositions;
 
@@ -247,6 +250,8 @@ export class ParticlesVisualizer extends BaseVisualizer {
    * @private
    */
   _updateParticleColors() {
+    if (!this._geometry?.attributes?.color?.array) return;
+
     const colors = this._geometry.attributes.color.array;
     const saturation = 0.6 + this._smoothedRichness * 0.3;
     const lightness = 0.4 + this._smoothedEnergy * 0.2;
@@ -274,6 +279,8 @@ export class ParticlesVisualizer extends BaseVisualizer {
    * @private
    */
   _updateParticleSizes() {
+    if (!this._material) return;
+
     // Update global size based on energy
     const sizeScale = 1 + this._smoothedEnergy * 0.5;
     this._material.size = this.particleSize * sizeScale;

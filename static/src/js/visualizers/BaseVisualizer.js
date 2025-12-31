@@ -183,6 +183,10 @@ export class BaseVisualizer {
       kurtosis: 0,
       pitch: null,
       octave: null,
+      dominantFrequency: 0,
+      dominantBin: 0,
+      bassFrequency: 0,
+      bassEnergy: 0,
       frequencyData: null,
       timeDomainData: null,
     };

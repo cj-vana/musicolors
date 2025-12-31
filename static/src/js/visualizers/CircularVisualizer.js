@@ -230,12 +230,16 @@ export class CircularVisualizer extends BaseVisualizer {
         smoothFactor
       );
 
-      // Update bar scale
+      // Update bar scale (use optional chaining to prevent minifier optimization)
       const height = Math.max(this._smoothedHeights[i] * maxBarHeight, 0.01);
-      this.bars[i].scale.y = height;
+      if (this.bars[i]?.scale) {
+        this.bars[i].scale.y = height;
+      }
 
       // Update opacity
-      this.barMaterials[i].opacity = 0.5 + this._smoothedHeights[i] * 0.5;
+      if (this.barMaterials[i]) {
+        this.barMaterials[i].opacity = 0.5 + this._smoothedHeights[i] * 0.5;
+      }
     }
   }
 
