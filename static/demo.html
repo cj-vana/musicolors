@@ -313,8 +313,16 @@
     <p>Classic frequency spectrum with vertical bars</p>
   </div>
 
-  <script type="module">
-    import { Visualizer, PRESET_INFO } from './src/js/visualizers/index.js';
+  <script>
+    // Load the bundled UMD version
+    const script = document.createElement('script');
+    script.src = './src/js/dist/visualizer.js';
+    script.onload = initDemo;
+    document.head.appendChild(script);
+
+    function initDemo() {
+    // Access from the UMD global
+    const { Visualizer, PRESET_INFO } = window.musicolors || musicolors;
 
     const container = document.getElementById('visualizer-target');
     const audioFile = document.getElementById('audio-file');
@@ -541,6 +549,7 @@
     updatePresetInfo(presetSelect.value);
 
     console.log('Musicolors v2.0 Demo loaded');
+    } // end initDemo
   </script>
 </body>
 </html>

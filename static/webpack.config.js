@@ -20,7 +20,7 @@ module.exports = {
     library: {
       name: 'musicolors',
       type: 'umd',
-      export: 'default',
+      // Export all named exports (not just default)
     },
     globalObject: 'this',
   },
