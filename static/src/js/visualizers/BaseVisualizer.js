@@ -65,6 +65,9 @@ export class BaseVisualizer {
     this._boundResizeHandler = this._handleResize.bind(this);
     window.addEventListener('resize', this._boundResizeHandler);
 
+    // Pre-setup hook for child class property initialization
+    this._initProperties();
+
     // Setup hook for subclasses
     this.setup();
   }
@@ -104,6 +107,15 @@ export class BaseVisualizer {
     this.camera = new THREE.PerspectiveCamera(45, aspect, 0.1, 1000);
     this.camera.position.set(0, 0, 5);
     this.camera.lookAt(0, 0, 0);
+  }
+
+  /**
+   * Property initialization hook - override in subclasses to initialize properties
+   * Called before setup() to ensure properties are available during setup
+   * @protected
+   */
+  _initProperties() {
+    // Override in subclass
   }
 
   /**

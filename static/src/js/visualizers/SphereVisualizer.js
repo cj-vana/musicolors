@@ -22,7 +22,15 @@ const MATERIAL_MODE = {
 export class SphereVisualizer extends BaseVisualizer {
   constructor(container, options = {}) {
     super(container, options);
+    // All property initialization moved to _initProperties()
+  }
 
+  /**
+   * Initialize all properties before setup() is called
+   * @override
+   * @protected
+   */
+  _initProperties() {
     // Perlin noise generator
     this._noise = new Noise(Math.random());
 
@@ -126,7 +134,6 @@ export class SphereVisualizer extends BaseVisualizer {
       // Soft lavender
       ['#7C3AED', '#8B5CF6', '#A78BFA', '#C4B5FD'],
     ];
-
   }
 
   /**
