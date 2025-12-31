@@ -1,92 +1,32 @@
 /**
  * Musicolors Visualizer Module
  *
- * Provides a unified API for audio-reactive visualizations.
- * Supports multiple preset visualizers and external audio sources.
+ * Provides a unified API for audio-reactive sphere visualization.
+ * Features multiple material modes and background particle effects.
  *
  * @example
  * // Basic usage with microphone
- * const visualizer = new Visualizer(container, { preset: 'bars' });
+ * const visualizer = new Visualizer(container);
  * await visualizer.initWithMicrophone();
  * visualizer.start();
  *
  * @example
  * // Usage with external audio (e.g., from a music player)
- * const visualizer = new Visualizer(container, { preset: 'topographic' });
+ * const visualizer = new Visualizer(container);
  * visualizer.initWithAnalyser(audioEngine.getAnalyser(), audioEngine.getAudioContext());
  * visualizer.start();
  *
  * @example
  * // Usage with HTML audio element
  * const audioEl = document.getElementById('audio');
- * const visualizer = new Visualizer(container, { preset: 'circular' });
+ * const visualizer = new Visualizer(container);
  * await visualizer.initWithAudioElement(audioEl);
  * visualizer.start();
  */
 
 import { AudioSource } from '../audio.js';
 import { BaseVisualizer } from './BaseVisualizer.js';
-import { MinimalVisualizer } from './MinimalVisualizer.js';
-import { BarsVisualizer } from './BarsVisualizer.js';
-import { WaveformVisualizer } from './WaveformVisualizer.js';
-import { CircularVisualizer } from './CircularVisualizer.js';
-import { TopographicVisualizer } from './TopographicVisualizer.js';
-import { ParticlesVisualizer } from './ParticlesVisualizer.js';
 import { SphereVisualizer } from './SphereVisualizer.js';
-
-/**
- * Available visualizer presets
- */
-export const PRESETS = {
-  sphere: SphereVisualizer,
-  minimal: MinimalVisualizer,
-  bars: BarsVisualizer,
-  waveform: WaveformVisualizer,
-  circular: CircularVisualizer,
-  topographic: TopographicVisualizer,
-  particles: ParticlesVisualizer,
-};
-
-/**
- * Preset information for UI display
- */
-export const PRESET_INFO = {
-  sphere: {
-    name: 'Sphere',
-    description: 'Pulsing sphere with energy-reactive gradient colors',
-    icon: 'sphere',
-  },
-  minimal: {
-    name: 'Minimal',
-    description: 'Subtle ambient glow that pulses with the music',
-    icon: 'glow',
-  },
-  bars: {
-    name: 'Bars',
-    description: 'Classic frequency spectrum with vertical bars',
-    icon: 'bar-chart',
-  },
-  waveform: {
-    name: 'Waveform',
-    description: 'Oscilloscope-style waveform display',
-    icon: 'wave',
-  },
-  circular: {
-    name: 'Circular',
-    description: 'Radial frequency bars arranged in a circle',
-    icon: 'circle',
-  },
-  topographic: {
-    name: 'Topographic',
-    description: 'Audio-reactive contour lines with wave animation',
-    icon: 'layers',
-  },
-  particles: {
-    name: 'Particles',
-    description: 'Dynamic particle system reacting to audio',
-    icon: 'sparkles',
-  },
-};
 
 /**
  * Main Visualizer class - the primary API for consumers
@@ -97,8 +37,7 @@ export class Visualizer {
    *
    * @param {HTMLElement} container - DOM element to render into
    * @param {Object} options - Configuration options
-   * @param {string} [options.preset='bars'] - Visualizer preset name
-   * @param {Object} [options.presetOptions={}] - Options passed to the preset visualizer
+   * @param {Object} [options.visualizerOptions={}] - Options passed to the SphereVisualizer
    */
   constructor(container, options = {}) {
     if (!container) {
@@ -106,8 +45,7 @@ export class Visualizer {
     }
 
     this.container = container;
-    this.preset = options.preset || 'bars';
-    this.presetOptions = options.presetOptions || {};
+    this.visualizerOptions = options.visualizerOptions || {};
 
     // Create audio source
     this.audioSource = new AudioSource(options.audioOptions);
@@ -163,61 +101,11 @@ export class Visualizer {
       this._visualizer = null;
     }
 
-    // Get preset class
-    const PresetClass = PRESETS[this.preset];
-    if (!PresetClass) {
-      throw new Error(`Unknown preset: ${this.preset}. Available: ${Object.keys(PRESETS).join(', ')}`);
-    }
-
-    // Create visualizer
-    this._visualizer = new PresetClass(this.container, this.presetOptions);
+    // Create sphere visualizer
+    this._visualizer = new SphereVisualizer(this.container, this.visualizerOptions);
 
     // Connect audio source
     this._visualizer.connectAudioSource(this.audioSource);
-  }
-
-  /**
-   * Change the visualizer preset
-   *
-   * @param {string} presetName - Name of the preset to switch to
-   * @param {Object} [presetOptions] - New options for the preset
-   */
-  setPreset(presetName, presetOptions) {
-    if (!PRESETS[presetName]) {
-      throw new Error(`Unknown preset: ${presetName}. Available: ${Object.keys(PRESETS).join(', ')}`);
-    }
-
-    const wasRunning = this._visualizer?.isRunning;
-
-    this.preset = presetName;
-    if (presetOptions) {
-      this.presetOptions = presetOptions;
-    }
-
-    if (this._isInitialized) {
-      this._createVisualizer();
-
-      // Resume if was running
-      if (wasRunning) {
-        this._visualizer.start();
-      }
-    }
-  }
-
-  /**
-   * Get list of available preset names
-   * @returns {string[]}
-   */
-  getAvailablePresets() {
-    return Object.keys(PRESETS);
-  }
-
-  /**
-   * Get information about all presets
-   * @returns {Object}
-   */
-  getPresetInfo() {
-    return PRESET_INFO;
   }
 
   /**
@@ -246,16 +134,8 @@ export class Visualizer {
   }
 
   /**
-   * Get the current preset name
-   * @returns {string}
-   */
-  get currentPreset() {
-    return this.preset;
-  }
-
-  /**
    * Get the current visualizer instance
-   * @returns {BaseVisualizer|null}
+   * @returns {SphereVisualizer|null}
    */
   get visualizer() {
     return this._visualizer;
@@ -297,17 +177,11 @@ export class Visualizer {
   }
 }
 
-// Export individual visualizers for direct use
+// Export classes for direct use
 export {
   AudioSource,
   BaseVisualizer,
   SphereVisualizer,
-  MinimalVisualizer,
-  BarsVisualizer,
-  WaveformVisualizer,
-  CircularVisualizer,
-  TopographicVisualizer,
-  ParticlesVisualizer,
 };
 
 // Default export

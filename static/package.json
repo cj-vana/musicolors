@@ -1,7 +1,7 @@
 {
   "name": "musicolors",
-  "version": "2.0.0",
-  "description": "A Javascript Library for Music Visualization Using Pitch, Energy, and Timbre. Now with 6 preset visualizers and external audio source support.",
+  "version": "3.0.0",
+  "description": "Audio-reactive sphere visualization with material modes, particles, and auto-switching. Built with Three.js and Web Audio API.",
   "main": "src/js/dist/visualizer.js",
   "module": "src/js/visualizers/index.js",
   "exports": {
@@ -22,34 +22,46 @@
       "require": "./src/js/dist/visualizer.js"
     }
   },
+  "files": [
+    "src/js/dist",
+    "src/js/visualizers",
+    "src/js/audio.js",
+    "src/js/colors.js"
+  ],
   "scripts": {
     "dev": "webpack --mode development",
     "build": "webpack --mode production",
     "watch": "webpack --watch --mode development",
-    "start": "npm run build && http-server"
+    "start": "npm run build && http-server",
+    "prepublishOnly": "npm run build"
   },
   "keywords": [
     "music-visualization",
     "sound-visualization",
-    "music-information-retrieval",
-    "visualization",
     "audio-visualizer",
     "webgl",
     "three.js",
-    "web-audio-api"
+    "web-audio-api",
+    "sphere",
+    "particles",
+    "audio-reactive"
   ],
   "author": "ChungHaLee <chunghalee@gm.gist.ac.kr> (https://chunghalee.com)",
   "license": "MIT",
+  "peerDependencies": {
+    "three": ">=0.148.0 <1.0.0"
+  },
   "dependencies": {
-    "html-webpack-plugin": "^5.5.3",
     "meyda": "^5.5.1",
     "noisejs": "^2.1.0",
     "note-frequency-map": "0.0.7",
-    "np": "^8.0.4",
-    "pitchy": "^4.0.7",
+    "pitchy": "^4.0.7"
+  },
+  "devDependencies": {
+    "html-webpack-plugin": "^5.5.3",
     "three": "^0.148.0",
-    "version": "^0.1.2",
-    "webpack": "^5.88.2"
+    "webpack": "^5.88.2",
+    "webpack-cli": "^5.1.4"
   },
   "repository": {
     "type": "git",
@@ -59,8 +71,5 @@
     "url": "https://github.com/ChungHaLee/musicolors/issues",
     "email": "chunghalee@gm.gist.ac.kr"
   },
-  "homepage": "https://github.com/ChungHaLee/musicolors#readme",
-  "devDependencies": {
-    "webpack-cli": "^5.1.4"
-  }
+  "homepage": "https://github.com/ChungHaLee/musicolors#readme"
 }

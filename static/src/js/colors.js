@@ -9,8 +9,8 @@ import {
 
 import { Noise } from 'noisejs';
 
-// New visualizer exports for v2.0
-export { Visualizer, PRESETS, PRESET_INFO, AudioSource } from './visualizers/index.js';
+// New visualizer exports for v3.0
+export { Visualizer, AudioSource, SphereVisualizer } from './visualizers/index.js';
 
 
 let controls;
