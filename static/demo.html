@@ -167,8 +167,12 @@
       width: 100%;
     }
 
-    .audio-controls audio {
+    #audio-wrapper {
       flex: 1;
+    }
+
+    #audio-wrapper audio {
+      width: 100%;
       height: 40px;
     }
 
@@ -297,7 +301,9 @@
   </div>
 
   <div class="audio-controls" id="audio-controls" style="display: none;">
-    <audio id="audio-element" controls></audio>
+    <div id="audio-wrapper">
+      <!-- Audio element will be created dynamically -->
+    </div>
   </div>
 
   <div id="status" class="status"></div>
@@ -312,7 +318,7 @@
 
     const container = document.getElementById('visualizer-target');
     const audioFile = document.getElementById('audio-file');
-    const audioElement = document.getElementById('audio-element');
+    const audioWrapper = document.getElementById('audio-wrapper');
     const audioControls = document.getElementById('audio-controls');
     const micBtn = document.getElementById('mic-btn');
     const presetSelect = document.getElementById('preset-select');
@@ -324,6 +330,8 @@
     const aspectSquare = document.getElementById('aspect-square');
 
     let visualizer = null;
+    let currentAudioElement = null;
+    let currentObjectUrl = null;
     let currentSource = null; // 'file' or 'mic'
 
     // Update preset info display
@@ -338,14 +346,29 @@
     function setStatus(message, type = '') {
       statusEl.textContent = message;
       statusEl.className = 'status' + (type ? ' ' + type : '');
+      console.log(`[Status] ${message}`);
+    }
+
+    // Cleanup previous resources
+    function cleanup() {
+      if (visualizer) {
+        visualizer.destroy();
+        visualizer = null;
+      }
+      if (currentObjectUrl) {
+        URL.revokeObjectURL(currentObjectUrl);
+        currentObjectUrl = null;
+      }
+      if (currentAudioElement) {
+        currentAudioElement.pause();
+        currentAudioElement.src = '';
+        currentAudioElement.remove();
+        currentAudioElement = null;
+      }
     }
 
     // Create visualizer instance
     function createVisualizer(preset) {
-      if (visualizer) {
-        visualizer.destroy();
-      }
-
       // Clear container
       container.innerHTML = '';
 
@@ -360,13 +383,50 @@
     // Initialize with audio file
     async function initWithFile(file) {
       try {
-        createVisualizer(presetSelect.value);
+        setStatus('Loading audio file...', '');
 
-        const url = URL.createObjectURL(file);
-        audioElement.src = url;
+        // Clean up previous resources first
+        cleanup();
+
+        // Create a fresh audio element each time
+        // This is required because createMediaElementSource can only be called once per element
+        currentAudioElement = document.createElement('audio');
+        currentAudioElement.controls = true;
+        currentAudioElement.style.width = '100%';
+        currentAudioElement.style.height = '40px';
+
+        // Clear and add to wrapper
+        audioWrapper.innerHTML = '';
+        audioWrapper.appendChild(currentAudioElement);
+
+        // Create object URL for the file
+        currentObjectUrl = URL.createObjectURL(file);
+        currentAudioElement.src = currentObjectUrl;
         audioControls.style.display = 'flex';
 
-        await visualizer.initWithAudioElement(audioElement);
+        // Wait for audio to be loadable
+        await new Promise((resolve, reject) => {
+          currentAudioElement.onloadedmetadata = resolve;
+          currentAudioElement.onerror = (e) => reject(new Error('Failed to load audio file'));
+          // Timeout after 10 seconds
+          setTimeout(() => reject(new Error('Audio load timeout')), 10000);
+        });
+
+        setStatus('Initializing visualizer...', '');
+
+        // Create visualizer
+        createVisualizer(presetSelect.value);
+
+        // Initialize with the audio element
+        await visualizer.initWithAudioElement(currentAudioElement);
+
+        // Resume audio context if needed (browser autoplay policy)
+        if (visualizer.audioSource && visualizer.audioSource.audioContext) {
+          if (visualizer.audioSource.audioContext.state === 'suspended') {
+            await visualizer.audioSource.audioContext.resume();
+          }
+        }
+
         visualizer.start();
 
         currentSource = 'file';
@@ -379,6 +439,14 @@
           </svg>
           ${file.name.substring(0, 25)}${file.name.length > 25 ? '...' : ''}
         `;
+
+        // Also resume on play click (for Safari and other strict browsers)
+        currentAudioElement.addEventListener('play', async () => {
+          if (visualizer?.audioSource?.audioContext?.state === 'suspended') {
+            await visualizer.audioSource.audioContext.resume();
+          }
+        });
+
       } catch (error) {
         console.error('Error initializing with file:', error);
         setStatus('Error: ' + error.message, 'error');
@@ -388,6 +456,10 @@
     // Initialize with microphone
     async function initWithMic() {
       try {
+        // Clean up previous resources
+        cleanup();
+        audioControls.style.display = 'none';
+
         createVisualizer(presetSelect.value);
 
         setStatus('Requesting microphone access...', '');
@@ -395,7 +467,6 @@
         visualizer.start();
 
         currentSource = 'mic';
-        audioControls.style.display = 'none';
         setStatus('Microphone active! Make some noise.', 'success');
         micBtn.textContent = 'Microphone Active';
         micBtn.disabled = true;
@@ -409,6 +480,11 @@
     audioFile.addEventListener('change', (e) => {
       const file = e.target.files[0];
       if (file) {
+        // Reset mic button if switching from mic
+        if (currentSource === 'mic') {
+          micBtn.textContent = 'Use Microphone';
+          micBtn.disabled = false;
+        }
         initWithFile(file);
       }
     });
@@ -463,6 +539,8 @@
 
     // Initialize preset info
     updatePresetInfo(presetSelect.value);
+
+    console.log('Musicolors v2.0 Demo loaded');
   </script>
 </body>
 </html>
