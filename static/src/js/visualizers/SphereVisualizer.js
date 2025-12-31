@@ -73,14 +73,14 @@ export class SphereVisualizer extends BaseVisualizer {
       { name: 'Rose Gold', color: 0xb76e79, roughness: 0.2 },
     ];
 
-    // Particle system settings
+    // Particle system settings (hyperspace tunnel)
     this._particleCount = 200;
     this._particles = null;
     this._particlePositions = null;
     this._particleVelocities = null;
     this._particleColors = null;
-    this._particleHomePositions = null;
     this._currentParticlePaletteIndex = 0;
+    this._hyperspaceBoostSpeed = 0;
 
     // Reusable THREE.Color object to avoid allocations in hot path
     this._tempColor = new THREE.Color();
@@ -254,18 +254,24 @@ export class SphereVisualizer extends BaseVisualizer {
   }
 
   /**
-   * Create background particle system with metallic colors
+   * Create hyperspace particle system - stars rushing toward camera
    * @private
    */
   _createParticles() {
     const count = this._particleCount;
     const geometry = new THREE.BufferGeometry();
 
-    // Initialize position, velocity, and color arrays
+    // Initialize position, velocity (z-speed), and color arrays
     this._particlePositions = new Float32Array(count * 3);
-    this._particleVelocities = new Float32Array(count * 3);
-    this._particleHomePositions = new Float32Array(count * 3);
+    this._particleVelocities = new Float32Array(count); // Just Z velocity for hyperspace
     this._particleColors = new Float32Array(count * 3);
+
+    // Hyperspace tunnel parameters
+    this._hyperspaceFarZ = -20; // Start far behind
+    this._hyperspaceNearZ = 5;  // Reset when reaching camera
+    this._hyperspaceBaseSpeed = 3; // Base forward speed
+    this._hyperspaceBoostSpeed = 0; // Current boost from beats
+    this._hyperspaceTunnelRadius = 3; // Radius of the tunnel
 
     // Get current metallic palette
     const palette = this._particlePalettes[this._currentParticlePaletteIndex];
@@ -273,31 +279,25 @@ export class SphereVisualizer extends BaseVisualizer {
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
 
-      // Distribute particles in a sphere shell behind the main sphere
-      // Radius between 1.5 and 3.5, positioned behind (negative z bias)
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-      const radius = 1.5 + Math.random() * 2.0;
+      // Distribute particles in a cylindrical tunnel around the camera view
+      const angle = Math.random() * Math.PI * 2;
+      // Vary radius - more particles near edges for tunnel effect
+      const radiusFactor = 0.3 + Math.random() * 0.7;
+      const radius = this._hyperspaceTunnelRadius * radiusFactor;
 
-      const x = radius * Math.sin(phi) * Math.cos(theta);
-      const y = radius * Math.sin(phi) * Math.sin(theta);
-      const z = -Math.abs(radius * Math.cos(phi)) - 0.5; // Push behind sphere
+      const x = radius * Math.cos(angle);
+      const y = radius * Math.sin(angle);
+      // Distribute along Z depth
+      const z = this._hyperspaceFarZ + Math.random() * (this._hyperspaceNearZ - this._hyperspaceFarZ);
 
       this._particlePositions[i3] = x;
       this._particlePositions[i3 + 1] = y;
       this._particlePositions[i3 + 2] = z;
 
-      // Store home positions for return animation
-      this._particleHomePositions[i3] = x;
-      this._particleHomePositions[i3 + 1] = y;
-      this._particleHomePositions[i3 + 2] = z;
+      // Each particle has slightly different base speed for variety
+      this._particleVelocities[i] = this._hyperspaceBaseSpeed * (0.7 + Math.random() * 0.6);
 
-      // Initialize velocities to zero
-      this._particleVelocities[i3] = 0;
-      this._particleVelocities[i3 + 1] = 0;
-      this._particleVelocities[i3 + 2] = 0;
-
-      // Assign random color from palette (reuse tempColor to avoid allocations)
+      // Assign random color from palette
       const colorHex = palette[Math.floor(Math.random() * palette.length)];
       this._tempColor.set(colorHex);
       this._particleColors[i3] = this._tempColor.r;
@@ -308,12 +308,12 @@ export class SphereVisualizer extends BaseVisualizer {
     geometry.setAttribute('position', new THREE.BufferAttribute(this._particlePositions, 3));
     geometry.setAttribute('color', new THREE.BufferAttribute(this._particleColors, 3));
 
-    // Create particle material with vertex colors
+    // Create particle material - slightly larger for streak effect
     const material = new THREE.PointsMaterial({
-      size: 0.04,
+      size: 0.06,
       vertexColors: true,
       transparent: true,
-      opacity: 0.8,
+      opacity: 0.9,
       sizeAttenuation: true,
       blending: THREE.AdditiveBlending,
     });
@@ -321,35 +321,22 @@ export class SphereVisualizer extends BaseVisualizer {
     this._particles = new THREE.Points(geometry, material);
     this._particles.position.set(0, 0, 0);
 
-    // Add behind sphere (render order)
+    // Render behind sphere
     this._particles.renderOrder = -1;
     this.scene.add(this._particles);
   }
 
   /**
-   * Scatter particles on transient/beat hit
+   * Boost particle speed on transient/beat hit - hyperspace acceleration
    * @private
    */
   _scatterParticles() {
-    if (!this._particleVelocities) return;
-
-    const count = this._particleCount;
-    for (let i = 0; i < count; i++) {
-      const i3 = i * 3;
-
-      // Random outward velocity
-      const speed = 0.5 + Math.random() * 1.5;
-      const theta = Math.random() * Math.PI * 2;
-      const phi = Math.acos(2 * Math.random() - 1);
-
-      this._particleVelocities[i3] = speed * Math.sin(phi) * Math.cos(theta);
-      this._particleVelocities[i3 + 1] = speed * Math.sin(phi) * Math.sin(theta);
-      this._particleVelocities[i3 + 2] = speed * Math.cos(phi) * -0.5; // Slight backward bias
-    }
+    // Add speed boost that decays over time
+    this._hyperspaceBoostSpeed = 8; // Strong forward boost
   }
 
   /**
-   * Update particle positions - animate scatter and return to home
+   * Update particle positions - hyperspace tunnel effect
    * @private
    */
   _updateParticles(deltaTime) {
@@ -357,37 +344,38 @@ export class SphereVisualizer extends BaseVisualizer {
 
     const positions = this._particlePositions;
     const velocities = this._particleVelocities;
-    const homePositions = this._particleHomePositions;
     const count = this._particleCount;
 
-    // Frame-rate independent damping: 0.96^(dt*60) gives consistent decay
-    // At 60fps: dt=0.0167, damping = 0.96^1 = 0.96
-    // At 120fps: dt=0.0083, damping = 0.96^0.5 ≈ 0.98
-    const effectiveDamping = Math.pow(0.96, deltaTime * 60);
-    const returnForce = 0.8;
+    // Decay boost speed (frame-rate independent)
+    const boostDecay = Math.pow(0.92, deltaTime * 60);
+    this._hyperspaceBoostSpeed *= boostDecay;
+
+    // Total speed = base + boost
+    const speedMultiplier = 1 + this._hyperspaceBoostSpeed;
 
     for (let i = 0; i < count; i++) {
       const i3 = i * 3;
 
-      // Apply velocity
-      positions[i3] += velocities[i3] * deltaTime;
-      positions[i3 + 1] += velocities[i3 + 1] * deltaTime;
-      positions[i3 + 2] += velocities[i3 + 2] * deltaTime;
+      // Move particle toward camera (positive Z)
+      const particleSpeed = velocities[i] * speedMultiplier;
+      positions[i3 + 2] += particleSpeed * deltaTime;
 
-      // Calculate return force toward home position
-      const dx = homePositions[i3] - positions[i3];
-      const dy = homePositions[i3 + 1] - positions[i3 + 1];
-      const dz = homePositions[i3 + 2] - positions[i3 + 2];
+      // When particle passes camera, reset to far end
+      if (positions[i3 + 2] > this._hyperspaceNearZ) {
+        // Reset Z position
+        positions[i3 + 2] = this._hyperspaceFarZ + Math.random() * 2;
 
-      // Add return acceleration
-      velocities[i3] += dx * returnForce * deltaTime;
-      velocities[i3 + 1] += dy * returnForce * deltaTime;
-      velocities[i3 + 2] += dz * returnForce * deltaTime;
+        // Randomize XY position within tunnel
+        const angle = Math.random() * Math.PI * 2;
+        const radiusFactor = 0.3 + Math.random() * 0.7;
+        const radius = this._hyperspaceTunnelRadius * radiusFactor;
 
-      // Apply frame-rate independent damping
-      velocities[i3] *= effectiveDamping;
-      velocities[i3 + 1] *= effectiveDamping;
-      velocities[i3 + 2] *= effectiveDamping;
+        positions[i3] = radius * Math.cos(angle);
+        positions[i3 + 1] = radius * Math.sin(angle);
+
+        // Randomize speed slightly
+        velocities[i] = this._hyperspaceBaseSpeed * (0.7 + Math.random() * 0.6);
+      }
     }
 
     // Update buffer
@@ -428,15 +416,17 @@ export class SphereVisualizer extends BaseVisualizer {
     this._materials.glass = new THREE.MeshPhysicalMaterial({
       color: 0xffffff,
       metalness: 0,
-      roughness: 0.05,
-      transmission: 0.95,
-      thickness: 0.5,
+      roughness: 0.25, // Frosted glass effect
+      transmission: 0.7, // More opaque for visibility
+      thickness: 0.8,
       ior: 1.5,
-      clearcoat: 1,
-      clearcoatRoughness: 0.1,
+      clearcoat: 0.5,
+      clearcoatRoughness: 0.3,
       transparent: true,
       envMap: this._envMap,
-      envMapIntensity: 1.0,
+      envMapIntensity: 1.5,
+      // Slight purple tint for frosted effect
+      color: 0xe8e0ff,
     });
 
     return this._materials.glass;
@@ -449,18 +439,21 @@ export class SphereVisualizer extends BaseVisualizer {
   _createMetallicMaterial() {
     const metalConfig = this._metallicColors[this._currentMetallicIndex];
 
-    // Create or update metallic material
+    // Create or update metallic material with subtle emissive glow
     if (!this._materials.metallic) {
       this._materials.metallic = new THREE.MeshStandardMaterial({
         color: metalConfig.color,
         metalness: 1.0,
         roughness: metalConfig.roughness,
         envMap: this._envMap,
-        envMapIntensity: 1.2,
+        envMapIntensity: 1.5,
+        emissive: metalConfig.color,
+        emissiveIntensity: 0.15, // Subtle glow for visibility
       });
     } else {
       this._materials.metallic.color.setHex(metalConfig.color);
       this._materials.metallic.roughness = metalConfig.roughness;
+      this._materials.metallic.emissive.setHex(metalConfig.color);
     }
 
     return this._materials.metallic;
@@ -786,12 +779,12 @@ export class SphereVisualizer extends BaseVisualizer {
       this._particles = null;
     }
 
-    // Clear particle arrays
+    // Clear particle arrays and hyperspace state
     this._particlePositions = null;
     this._particleVelocities = null;
-    this._particleHomePositions = null;
     this._particleColors = null;
     this._particlePalettes = null;
+    this._hyperspaceBoostSpeed = 0;
 
     // Clear sphere arrays and helpers
     this._originalPositions = null;
