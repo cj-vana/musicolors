@@ -233,9 +233,13 @@ export class BarsVisualizer extends BaseVisualizer {
    * @private
    */
   _updateBarHeights(freqData, smoothFactor) {
-    const maxHeight = 1.8; // Maximum bar height in world units
+    // Guard: ensure bars array is properly initialized
+    if (!this.bars || this.bars.length === 0) return;
 
-    for (let i = 0; i < this.barCount; i++) {
+    const maxHeight = 1.8; // Maximum bar height in world units
+    const barLen = this.bars.length;
+
+    for (let i = 0; i < barLen; i++) {
       let amplitude = 0;
 
       if (freqData && freqData.length > 0) {
@@ -257,11 +261,17 @@ export class BarsVisualizer extends BaseVisualizer {
 
       // Update bar scale
       const height = Math.max(this._smoothedHeights[i] * maxHeight, 0.01);
-      this.bars[i].scale.y = height;
+      const bar = this.bars[i];
+      if (bar) {
+        bar.scale.y = height;
+      }
 
       // Update opacity based on height and energy
-      const baseOpacity = 0.6 + this._smoothedHeights[i] * 0.4;
-      this.barMaterials[i].opacity = baseOpacity;
+      const mat = this.barMaterials[i];
+      if (mat) {
+        const baseOpacity = 0.6 + this._smoothedHeights[i] * 0.4;
+        mat.opacity = baseOpacity;
+      }
     }
   }
 
@@ -307,16 +317,27 @@ export class BarsVisualizer extends BaseVisualizer {
    * @private
    */
   _updateReflection() {
-    // Guard against destroyed state
-    if (!this.reflectionBars || !this.reflectionMaterials) return;
+    // Guard against destroyed or uninitialized state
+    if (!this.reflectionBars || this.reflectionBars.length === 0) return;
+    if (!this.bars || this.bars.length === 0) return;
 
-    for (let i = 0; i < this.reflectionBars.length; i++) {
-      // Reflection height matches main bar but scaled down
-      this.reflectionBars[i].scale.y = this.bars[i].scale.y * 0.3;
+    const len = Math.min(this.reflectionBars.length, this.bars.length);
+    for (let i = 0; i < len; i++) {
+      const refBar = this.reflectionBars[i];
+      const mainBar = this.bars[i];
+      const refMat = this.reflectionMaterials[i];
+      const mainMat = this.barMaterials[i];
 
-      // Match color with reduced opacity
-      this.reflectionMaterials[i].color.copy(this.barMaterials[i].color);
-      this.reflectionMaterials[i].opacity = this.barMaterials[i].opacity * 0.25;
+      if (refBar && mainBar) {
+        // Reflection height matches main bar but scaled down
+        refBar.scale.y = mainBar.scale.y * 0.3;
+      }
+
+      if (refMat && mainMat) {
+        // Match color with reduced opacity
+        refMat.color.copy(mainMat.color);
+        refMat.opacity = mainMat.opacity * 0.25;
+      }
     }
   }
 
