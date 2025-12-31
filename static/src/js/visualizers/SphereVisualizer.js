@@ -414,23 +414,23 @@ export class SphereVisualizer extends BaseVisualizer {
     if (this._materials.glass) return this._materials.glass;
 
     this._materials.glass = new THREE.MeshPhysicalMaterial({
-      color: 0xffffff,
+      color: 0xaaccff, // Slight blue tint
       metalness: 0,
-      roughness: 0.15, // Subtle frosting
-      transmission: 0.92, // High transparency
-      thickness: 1.5, // Thicker for more internal refraction
-      ior: 1.45, // Index of refraction
-      clearcoat: 1.0, // Glossy outer surface
-      clearcoatRoughness: 0.05,
+      roughness: 0.1,
+      transmission: 0.85,
+      thickness: 1.0,
+      ior: 1.5,
+      clearcoat: 1.0,
+      clearcoatRoughness: 0.1,
       transparent: true,
       envMap: this._envMap,
-      envMapIntensity: 2.0,
-      // Internal glow color (visible through thickness)
-      attenuationColor: new THREE.Color(0x8b5cf6), // Purple internal glow
-      attenuationDistance: 0.5, // How quickly the color absorbs
-      sheen: 0.5, // Surface shimmer
-      sheenRoughness: 0.3,
-      sheenColor: new THREE.Color(0x6366f1), // Indigo sheen
+      envMapIntensity: 2.5,
+      // Self-illumination so it's visible on black background
+      emissive: 0x4466aa,
+      emissiveIntensity: 0.3,
+      // Internal color absorption
+      attenuationColor: new THREE.Color(0x88aaff),
+      attenuationDistance: 0.8,
     });
 
     return this._materials.glass;
