@@ -1,0 +1,468 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Musicolors v2.0 Demo</title>
+  <style>
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+    }
+
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      background: #0a0a0a;
+      color: #e5e5e5;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      padding: 20px;
+    }
+
+    h1 {
+      font-size: 1.8rem;
+      margin-bottom: 10px;
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+    }
+
+    .subtitle {
+      color: #71717a;
+      margin-bottom: 30px;
+    }
+
+    .controls {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 15px;
+      justify-content: center;
+      align-items: center;
+      margin-bottom: 20px;
+      padding: 20px;
+      background: #18181b;
+      border-radius: 12px;
+      border: 1px solid #27272a;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    .control-group {
+      display: flex;
+      flex-direction: column;
+      gap: 5px;
+    }
+
+    .control-group label {
+      font-size: 0.75rem;
+      color: #71717a;
+      text-transform: uppercase;
+      letter-spacing: 0.5px;
+    }
+
+    select, button, input[type="file"] {
+      font-family: inherit;
+      font-size: 0.9rem;
+      padding: 10px 16px;
+      border-radius: 8px;
+      border: 1px solid #3f3f46;
+      background: #27272a;
+      color: #e5e5e5;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    select:hover, button:hover {
+      border-color: #6366f1;
+    }
+
+    select:focus, button:focus {
+      outline: none;
+      border-color: #6366f1;
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.2);
+    }
+
+    button.primary {
+      background: linear-gradient(135deg, #6366f1, #8b5cf6);
+      border: none;
+      font-weight: 500;
+    }
+
+    button.primary:hover {
+      opacity: 0.9;
+    }
+
+    button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+
+    .file-input-wrapper {
+      position: relative;
+      overflow: hidden;
+    }
+
+    .file-input-wrapper input[type="file"] {
+      position: absolute;
+      left: 0;
+      top: 0;
+      opacity: 0;
+      width: 100%;
+      height: 100%;
+      cursor: pointer;
+    }
+
+    .file-input-label {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 10px 16px;
+      background: #27272a;
+      border: 1px solid #3f3f46;
+      border-radius: 8px;
+      color: #e5e5e5;
+      cursor: pointer;
+      transition: all 0.2s;
+    }
+
+    .file-input-wrapper:hover .file-input-label {
+      border-color: #6366f1;
+    }
+
+    .visualizer-container {
+      width: 100%;
+      max-width: 800px;
+      aspect-ratio: 16 / 9;
+      background: #0f0f0f;
+      border-radius: 12px;
+      border: 1px solid #27272a;
+      overflow: hidden;
+      position: relative;
+    }
+
+    .visualizer-container.square {
+      aspect-ratio: 1 / 1;
+      max-width: 500px;
+    }
+
+    #visualizer-target {
+      width: 100%;
+      height: 100%;
+    }
+
+    .audio-controls {
+      display: flex;
+      align-items: center;
+      gap: 15px;
+      margin-top: 20px;
+      padding: 15px 20px;
+      background: #18181b;
+      border-radius: 12px;
+      border: 1px solid #27272a;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    .audio-controls audio {
+      flex: 1;
+      height: 40px;
+    }
+
+    audio::-webkit-media-controls-panel {
+      background: #27272a;
+    }
+
+    .status {
+      font-size: 0.85rem;
+      color: #71717a;
+      margin-top: 15px;
+    }
+
+    .status.success {
+      color: #22c55e;
+    }
+
+    .status.error {
+      color: #ef4444;
+    }
+
+    .preset-info {
+      margin-top: 20px;
+      padding: 15px;
+      background: #18181b;
+      border-radius: 12px;
+      border: 1px solid #27272a;
+      max-width: 800px;
+      width: 100%;
+    }
+
+    .preset-info h3 {
+      font-size: 1rem;
+      margin-bottom: 5px;
+      color: #8b5cf6;
+    }
+
+    .preset-info p {
+      font-size: 0.9rem;
+      color: #a1a1aa;
+    }
+
+    .aspect-toggle {
+      display: flex;
+      gap: 5px;
+    }
+
+    .aspect-toggle button {
+      padding: 8px 12px;
+      font-size: 0.8rem;
+    }
+
+    .aspect-toggle button.active {
+      background: #6366f1;
+      border-color: #6366f1;
+    }
+
+    .loading {
+      position: absolute;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      color: #71717a;
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <h1>Musicolors v2.0</h1>
+  <p class="subtitle">Audio-reactive visualization library</p>
+
+  <div class="controls">
+    <div class="control-group">
+      <label>Audio Source</label>
+      <div class="file-input-wrapper">
+        <div class="file-input-label" id="file-label">
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/>
+            <polyline points="17 8 12 3 7 8"/>
+            <line x1="12" y1="3" x2="12" y2="15"/>
+          </svg>
+          Choose audio file
+        </div>
+        <input type="file" id="audio-file" accept="audio/*">
+      </div>
+    </div>
+
+    <div class="control-group">
+      <label>Or use microphone</label>
+      <button id="mic-btn">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" style="vertical-align: middle; margin-right: 5px;">
+          <path d="M12 1a3 3 0 0 0-3 3v8a3 3 0 0 0 6 0V4a3 3 0 0 0-3-3z"/>
+          <path d="M19 10v2a7 7 0 0 1-14 0v-2"/>
+          <line x1="12" y1="19" x2="12" y2="23"/>
+          <line x1="8" y1="23" x2="16" y2="23"/>
+        </svg>
+        Use Microphone
+      </button>
+    </div>
+
+    <div class="control-group">
+      <label>Visualizer Preset</label>
+      <select id="preset-select">
+        <option value="minimal">Minimal</option>
+        <option value="bars" selected>Bars</option>
+        <option value="waveform">Waveform</option>
+        <option value="circular">Circular</option>
+        <option value="topographic">Topographic</option>
+        <option value="particles">Particles</option>
+      </select>
+    </div>
+
+    <div class="control-group">
+      <label>Aspect Ratio</label>
+      <div class="aspect-toggle">
+        <button id="aspect-wide" class="active">16:9</button>
+        <button id="aspect-square">1:1</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="visualizer-container" id="container">
+    <div id="visualizer-target">
+      <div class="loading">Select an audio source to begin</div>
+    </div>
+  </div>
+
+  <div class="audio-controls" id="audio-controls" style="display: none;">
+    <audio id="audio-element" controls></audio>
+  </div>
+
+  <div id="status" class="status"></div>
+
+  <div class="preset-info" id="preset-info">
+    <h3>Bars</h3>
+    <p>Classic frequency spectrum with vertical bars</p>
+  </div>
+
+  <script type="module">
+    import { Visualizer, PRESET_INFO } from './src/js/visualizers/index.js';
+
+    const container = document.getElementById('visualizer-target');
+    const audioFile = document.getElementById('audio-file');
+    const audioElement = document.getElementById('audio-element');
+    const audioControls = document.getElementById('audio-controls');
+    const micBtn = document.getElementById('mic-btn');
+    const presetSelect = document.getElementById('preset-select');
+    const statusEl = document.getElementById('status');
+    const presetInfoEl = document.getElementById('preset-info');
+    const fileLabel = document.getElementById('file-label');
+    const containerEl = document.getElementById('container');
+    const aspectWide = document.getElementById('aspect-wide');
+    const aspectSquare = document.getElementById('aspect-square');
+
+    let visualizer = null;
+    let currentSource = null; // 'file' or 'mic'
+
+    // Update preset info display
+    function updatePresetInfo(preset) {
+      const info = PRESET_INFO[preset];
+      if (info) {
+        presetInfoEl.innerHTML = `<h3>${info.name}</h3><p>${info.description}</p>`;
+      }
+    }
+
+    // Set status message
+    function setStatus(message, type = '') {
+      statusEl.textContent = message;
+      statusEl.className = 'status' + (type ? ' ' + type : '');
+    }
+
+    // Create visualizer instance
+    function createVisualizer(preset) {
+      if (visualizer) {
+        visualizer.destroy();
+      }
+
+      // Clear container
+      container.innerHTML = '';
+
+      visualizer = new Visualizer(container, {
+        preset: preset,
+        presetOptions: {}
+      });
+
+      updatePresetInfo(preset);
+    }
+
+    // Initialize with audio file
+    async function initWithFile(file) {
+      try {
+        createVisualizer(presetSelect.value);
+
+        const url = URL.createObjectURL(file);
+        audioElement.src = url;
+        audioControls.style.display = 'flex';
+
+        await visualizer.initWithAudioElement(audioElement);
+        visualizer.start();
+
+        currentSource = 'file';
+        setStatus('Ready! Press play to see the visualization.', 'success');
+        fileLabel.innerHTML = `
+          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M9 18V5l12-2v13"/>
+            <circle cx="6" cy="18" r="3"/>
+            <circle cx="18" cy="16" r="3"/>
+          </svg>
+          ${file.name.substring(0, 25)}${file.name.length > 25 ? '...' : ''}
+        `;
+      } catch (error) {
+        console.error('Error initializing with file:', error);
+        setStatus('Error: ' + error.message, 'error');
+      }
+    }
+
+    // Initialize with microphone
+    async function initWithMic() {
+      try {
+        createVisualizer(presetSelect.value);
+
+        setStatus('Requesting microphone access...', '');
+        await visualizer.initWithMicrophone();
+        visualizer.start();
+
+        currentSource = 'mic';
+        audioControls.style.display = 'none';
+        setStatus('Microphone active! Make some noise.', 'success');
+        micBtn.textContent = 'Microphone Active';
+        micBtn.disabled = true;
+      } catch (error) {
+        console.error('Error initializing with mic:', error);
+        setStatus('Error: ' + error.message, 'error');
+      }
+    }
+
+    // Handle file selection
+    audioFile.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (file) {
+        initWithFile(file);
+      }
+    });
+
+    // Handle microphone button
+    micBtn.addEventListener('click', () => {
+      initWithMic();
+    });
+
+    // Handle preset change
+    presetSelect.addEventListener('change', (e) => {
+      const newPreset = e.target.value;
+      updatePresetInfo(newPreset);
+
+      if (visualizer && visualizer._isInitialized) {
+        visualizer.setPreset(newPreset);
+        if (!visualizer.isRunning) {
+          visualizer.start();
+        }
+      }
+    });
+
+    // Handle aspect ratio toggle
+    aspectWide.addEventListener('click', () => {
+      containerEl.classList.remove('square');
+      aspectWide.classList.add('active');
+      aspectSquare.classList.remove('active');
+      if (visualizer) {
+        setTimeout(() => {
+          visualizer.resize(container.clientWidth, container.clientHeight);
+        }, 100);
+      }
+    });
+
+    aspectSquare.addEventListener('click', () => {
+      containerEl.classList.add('square');
+      aspectSquare.classList.add('active');
+      aspectWide.classList.remove('active');
+      if (visualizer) {
+        setTimeout(() => {
+          visualizer.resize(container.clientWidth, container.clientHeight);
+        }, 100);
+      }
+    });
+
+    // Handle window resize
+    window.addEventListener('resize', () => {
+      if (visualizer) {
+        visualizer.resize(container.clientWidth, container.clientHeight);
+      }
+    });
+
+    // Initialize preset info
+    updatePresetInfo(presetSelect.value);
+  </script>
+</body>
+</html>

@@ -1,10 +1,16 @@
 import * as THREE from 'three';
 
 import { OrbitControls } from 'three/examples/jsm/controls/OrbitControls.js';
-import { pitchDetector, energy, roughness, warmth, richness, sharpness, kurtosis,
-         dataArray, analyser, realpitch, realoctave } from './audio.js'
+// Legacy audio imports - use the backwards-compatible exports
+import {
+  pitchDetector, energy, roughness, warmth, richness, sharpness, kurtosis,
+  dataArray, analyser, realpitch, realoctave
+} from './audio.js';
 
 import { Noise } from 'noisejs';
+
+// New visualizer exports for v2.0
+export { Visualizer, PRESETS, PRESET_INFO, AudioSource } from './visualizers/index.js';
 
 
 let controls;

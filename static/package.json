@@ -1,19 +1,42 @@
 {
   "name": "musicolors",
-  "version": "1.5.0",
-  "description": "A Javascript Library for Music Visualization Using Pitch, Energy, and Timbre. 🪄",
-  "main": "colors.js",
+  "version": "2.0.0",
+  "description": "A Javascript Library for Music Visualization Using Pitch, Energy, and Timbre. Now with 6 preset visualizers and external audio source support.",
+  "main": "src/js/dist/visualizer.js",
+  "module": "src/js/visualizers/index.js",
+  "exports": {
+    ".": {
+      "import": "./src/js/visualizers/index.js",
+      "require": "./src/js/dist/visualizer.js"
+    },
+    "./audio": {
+      "import": "./src/js/audio.js",
+      "require": "./src/js/dist/audio.js"
+    },
+    "./colors": {
+      "import": "./src/js/colors.js",
+      "require": "./src/js/dist/colors.js"
+    },
+    "./visualizers": {
+      "import": "./src/js/visualizers/index.js",
+      "require": "./src/js/dist/visualizer.js"
+    }
+  },
   "scripts": {
     "dev": "webpack --mode development",
-    "build": "webpack",
-    "watch": "webpack --watch",
+    "build": "webpack --mode production",
+    "watch": "webpack --watch --mode development",
     "start": "npm run build && http-server"
   },
   "keywords": [
     "music-visualization",
     "sound-visualization",
     "music-information-retrieval",
-    "visualization"
+    "visualization",
+    "audio-visualizer",
+    "webgl",
+    "three.js",
+    "web-audio-api"
   ],
   "author": "ChungHaLee <chunghalee@gm.gist.ac.kr> (https://chunghalee.com)",
   "license": "MIT",
