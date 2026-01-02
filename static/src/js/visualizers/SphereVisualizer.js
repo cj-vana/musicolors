@@ -2,22 +2,13 @@ import * as THREE from 'three';
 import { Noise } from 'noisejs';
 import { BaseVisualizer } from './BaseVisualizer.js';
 
-// Material mode constants
-const MATERIAL_MODE = {
-  GRADIENT: 0,
-  GLASS: 1,
-  METALLIC: 2,
-};
-
 /**
- * SphereVisualizer - Pulsing sphere with multiple material modes
+ * SphereVisualizer - Pulsing sphere with reflective gradient
  *
  * Features:
- * - Color shifts through gradient on energy transients (kicks, hits)
+ * - Reflective gradient colors that shift on energy transients
  * - Perlin noise vertex deformation for timbre
- * - Background metallic particles that scatter on beats
- * - Three material modes: Gradient, Glass, Metallic
- * - Auto-switching materials on silence (song changes)
+ * - Hyperspace particle tunnel rushing toward camera
  */
 export class SphereVisualizer extends BaseVisualizer {
   constructor(container, options = {}) {
@@ -49,29 +40,8 @@ export class SphereVisualizer extends BaseVisualizer {
     this._transientThreshold = 0.12; // Energy jump needed to trigger palette shift
     this._currentPaletteIndex = 0;
 
-    // Material mode system
-    this._materialMode = MATERIAL_MODE.GRADIENT;
-    this._materials = {}; // Cached materials by mode
-    this._currentMetallicIndex = 0; // For cycling metallic colors
-
-    // Silence detection for auto-switching materials
-    // Note: Uses raw energy (not normalized) for reliable detection
-    this._silenceThreshold = 0.005; // Raw energy below this is silence
-    this._silenceExitThreshold = 0.02; // Higher threshold to exit silence (hysteresis)
-    this._silenceDuration = 0; // Accumulated silence time in seconds
-    this._silenceSwitchTime = 4; // Seconds of silence before switching material
-    this._isSilent = false; // Track silence state for hysteresis
-    this._lastSwitchTime = 0; // Timestamp of last material switch
-    this._switchCooldown = 8; // Minimum seconds between material switches
-
-    // Metallic color options (chrome + tinted metals)
-    this._metallicColors = [
-      { name: 'Chrome', color: 0xffffff, roughness: 0.05 },
-      { name: 'Gold', color: 0xffd700, roughness: 0.2 },
-      { name: 'Copper', color: 0xb87333, roughness: 0.25 },
-      { name: 'Silver', color: 0xc0c0c0, roughness: 0.15 },
-      { name: 'Rose Gold', color: 0xb76e79, roughness: 0.2 },
-    ];
+    // Gradient material reference
+    this._gradientMaterial = null;
 
     // Particle system settings (hyperspace tunnel)
     this._particleCount = 200;
@@ -162,7 +132,7 @@ export class SphereVisualizer extends BaseVisualizer {
     // Calculate max scale for this viewport
     this._calculateMaxScale();
 
-    // Lighting - enhanced for glass/metallic materials
+    // Lighting
     const ambientLight = new THREE.AmbientLight(0xffffff, 0.4);
     this.scene.add(ambientLight);
 
@@ -171,18 +141,6 @@ export class SphereVisualizer extends BaseVisualizer {
     spotLight.position.set(-10, 40, 20);
     spotLight.castShadow = true;
     this.scene.add(spotLight);
-
-    // Add point lights for better reflections on glass/metallic
-    const pointLight1 = new THREE.PointLight(0x6366f1, 0.5);
-    pointLight1.position.set(3, 2, 3);
-    this.scene.add(pointLight1);
-
-    const pointLight2 = new THREE.PointLight(0x8b5cf6, 0.3);
-    pointLight2.position.set(-3, -2, 2);
-    this.scene.add(pointLight2);
-
-    // Create simple environment map for glass/metallic reflections
-    this._createEnvironmentMap();
 
     // Create group for sphere
     this._group = new THREE.Group();
@@ -196,44 +154,7 @@ export class SphereVisualizer extends BaseVisualizer {
   }
 
   /**
-   * Create a simple procedural environment map for reflections
-   * @private
-   */
-  _createEnvironmentMap() {
-    // Use PMREMGenerator to create an environment map
-    const pmremGenerator = new THREE.PMREMGenerator(this.renderer);
-    pmremGenerator.compileEquirectangularShader();
-
-    // Create a simple scene with a colored background for the env map
-    const envScene = new THREE.Scene();
-    envScene.background = new THREE.Color(0x1a1a2e);
-
-    // Add some colored lights to the env scene for reflections
-    const envLight1 = new THREE.PointLight(0x6366f1, 2);
-    envLight1.position.set(5, 5, 5);
-    envScene.add(envLight1);
-
-    const envLight2 = new THREE.PointLight(0x8b5cf6, 1.5);
-    envLight2.position.set(-5, 3, 5);
-    envScene.add(envLight2);
-
-    const envLight3 = new THREE.PointLight(0x22c55e, 1);
-    envLight3.position.set(0, -5, 5);
-    envScene.add(envLight3);
-
-    // Generate the environment map
-    this._envMap = pmremGenerator.fromScene(envScene, 0.04).texture;
-
-    // Cleanup temporary resources
-    pmremGenerator.dispose();
-    envLight1.dispose();
-    envLight2.dispose();
-    envLight3.dispose();
-    envScene.background = null;
-  }
-
-  /**
-   * Create sphere with initial gradient material
+   * Create sphere with reflective gradient material
    * @private
    */
   _createSphere() {
@@ -245,10 +166,10 @@ export class SphereVisualizer extends BaseVisualizer {
     this._originalPositions = new Float32Array(positions.length);
     this._originalPositions.set(positions);
 
-    // Create and cache the gradient material
-    this._materials.gradient = this._createGradientMaterial();
+    // Create the gradient material
+    this._gradientMaterial = this._createGradientMaterial();
 
-    this._sphere = new THREE.Mesh(geometry, this._materials.gradient);
+    this._sphere = new THREE.Mesh(geometry, this._gradientMaterial);
     this._sphere.position.set(0, 0, 0);
     this._group.add(this._sphere);
   }
@@ -407,100 +328,7 @@ export class SphereVisualizer extends BaseVisualizer {
   }
 
   /**
-   * Create Glass material
-   * @private
-   */
-  _createGlassMaterial() {
-    if (this._materials.glass) return this._materials.glass;
-
-    this._materials.glass = new THREE.MeshPhysicalMaterial({
-      color: 0xaaccff, // Slight blue tint
-      metalness: 0,
-      roughness: 0.1,
-      transmission: 0.85,
-      thickness: 1.0,
-      ior: 1.5,
-      clearcoat: 1.0,
-      clearcoatRoughness: 0.1,
-      transparent: true,
-      envMap: this._envMap,
-      envMapIntensity: 2.5,
-      // Self-illumination so it's visible on black background
-      emissive: 0x4466aa,
-      emissiveIntensity: 0.3,
-      // Internal color absorption
-      attenuationColor: new THREE.Color(0x88aaff),
-      attenuationDistance: 0.8,
-    });
-
-    return this._materials.glass;
-  }
-
-  /**
-   * Create Metallic material
-   * @private
-   */
-  _createMetallicMaterial() {
-    const metalConfig = this._metallicColors[this._currentMetallicIndex];
-
-    // Create or update metallic material with subtle emissive glow
-    if (!this._materials.metallic) {
-      this._materials.metallic = new THREE.MeshStandardMaterial({
-        color: metalConfig.color,
-        metalness: 1.0,
-        roughness: metalConfig.roughness,
-        envMap: this._envMap,
-        envMapIntensity: 1.5,
-        emissive: metalConfig.color,
-        emissiveIntensity: 0.15, // Subtle glow for visibility
-      });
-    } else {
-      this._materials.metallic.color.setHex(metalConfig.color);
-      this._materials.metallic.roughness = metalConfig.roughness;
-      this._materials.metallic.emissive.setHex(metalConfig.color);
-    }
-
-    return this._materials.metallic;
-  }
-
-  /**
-   * Switch to the next material mode
-   * @private
-   */
-  _switchMaterial() {
-    if (!this._sphere) return;
-
-    // Cycle to next mode: GRADIENT -> GLASS -> METALLIC -> GRADIENT
-    const modeCount = Object.keys(MATERIAL_MODE).length;
-    this._materialMode = (this._materialMode + 1) % modeCount;
-
-    let newMaterial;
-    switch (this._materialMode) {
-      case MATERIAL_MODE.GLASS:
-        newMaterial = this._createGlassMaterial();
-        break;
-      case MATERIAL_MODE.METALLIC:
-        // Cycle metallic color on each switch to metallic
-        this._currentMetallicIndex =
-          (this._currentMetallicIndex + 1) % this._metallicColors.length;
-        newMaterial = this._createMetallicMaterial();
-        break;
-      case MATERIAL_MODE.GRADIENT:
-      default:
-        // Use cached gradient material or create it
-        if (!this._materials.gradient) {
-          this._materials.gradient = this._createGradientMaterial();
-        }
-        newMaterial = this._materials.gradient;
-        break;
-    }
-
-    // Swap the material
-    this._sphere.material = newMaterial;
-  }
-
-  /**
-   * Create the gradient shader material (original style)
+   * Create the gradient shader material with reflective glossiness
    * @private
    */
   _createGradientMaterial() {
@@ -516,11 +344,14 @@ export class SphereVisualizer extends BaseVisualizer {
       vertexShader: `
         varying vec2 vUv;
         varying vec3 vNormal;
+        varying vec3 vViewPosition;
 
         void main() {
           vUv = uv;
           vNormal = normalize(normalMatrix * normal);
-          gl_Position = projectionMatrix * modelViewMatrix * vec4(position, 1.0);
+          vec4 mvPosition = modelViewMatrix * vec4(position, 1.0);
+          vViewPosition = -mvPosition.xyz;
+          gl_Position = projectionMatrix * mvPosition;
         }
       `,
       fragmentShader: `
@@ -533,30 +364,47 @@ export class SphereVisualizer extends BaseVisualizer {
 
         varying vec2 vUv;
         varying vec3 vNormal;
+        varying vec3 vViewPosition;
 
         void main() {
           // Top to bottom gradient using V coordinate
           float t = vUv.y; // 0 (bottom) to 1 (top)
 
           // Smooth 4-color gradient from top to bottom
-          vec3 color;
+          vec3 baseColor;
           if (t < 0.33) {
-            color = mix(color0, color1, t * 3.0);
+            baseColor = mix(color0, color1, t * 3.0);
           } else if (t < 0.66) {
-            color = mix(color1, color2, (t - 0.33) * 3.0);
+            baseColor = mix(color1, color2, (t - 0.33) * 3.0);
           } else {
-            color = mix(color2, color3, (t - 0.66) * 3.0);
+            baseColor = mix(color2, color3, (t - 0.66) * 3.0);
           }
 
+          // Normalized view direction
+          vec3 viewDir = normalize(vViewPosition);
+          vec3 normal = normalize(vNormal);
+
           // 3D shading based on normal
-          float facing = dot(vNormal, vec3(0.0, 0.0, 1.0));
+          float facing = dot(normal, vec3(0.0, 0.0, 1.0));
           float shade = 0.6 + 0.4 * facing;
 
-          // Rim lighting
-          float rim = 1.0 - max(0.0, facing);
-          rim = pow(rim, 2.0) * 0.2;
+          // Fresnel effect for edge reflections (rim glow)
+          float fresnel = pow(1.0 - max(0.0, dot(normal, viewDir)), 3.0);
 
-          color = color * shade + color * rim;
+          // Specular highlight from simulated light
+          vec3 lightDir = normalize(vec3(0.5, 0.5, 1.0));
+          vec3 reflectDir = reflect(-lightDir, normal);
+          float specular = pow(max(0.0, dot(viewDir, reflectDir)), 32.0);
+
+          // Combine: base color with shading
+          vec3 color = baseColor * shade;
+
+          // Add fresnel rim reflection (bright edge glow)
+          vec3 rimColor = mix(baseColor, vec3(1.0), 0.5); // Lighter version of base
+          color += rimColor * fresnel * 0.4;
+
+          // Add specular highlight
+          color += vec3(1.0) * specular * 0.3;
 
           gl_FragColor = vec4(color, 1.0);
         }
@@ -565,12 +413,10 @@ export class SphereVisualizer extends BaseVisualizer {
   }
 
   /**
-   * Update sphere colors based on current palette (gradient mode only)
+   * Update sphere colors based on current palette
    * @private
    */
   _updateColors() {
-    // Only update colors in gradient mode
-    if (this._materialMode !== MATERIAL_MODE.GRADIENT) return;
     if (!this._sphere?.material?.uniforms) return;
 
     const palette = this._palettes[this._currentPaletteIndex];
@@ -614,31 +460,6 @@ export class SphereVisualizer extends BaseVisualizer {
       // Scatter particles and cycle their color palette on beats
       this._scatterParticles();
       this._cycleParticlePalette();
-    }
-
-    // === SILENCE DETECTION FOR MATERIAL AUTO-SWITCH ===
-    // Uses raw energy (not normalized) for reliable detection with hysteresis
-    if (this._isSilent) {
-      // Currently in silence - check if we should exit (higher threshold)
-      if (rawEnergy > this._silenceExitThreshold) {
-        this._isSilent = false;
-        this._silenceDuration = 0;
-      }
-    } else {
-      // Not in silence - check if we should enter
-      if (rawEnergy < this._silenceThreshold) {
-        this._silenceDuration += dt;
-        const now = performance.now() / 1000;
-        const cooldownElapsed = now - this._lastSwitchTime > this._switchCooldown;
-        if (this._silenceDuration > this._silenceSwitchTime && cooldownElapsed) {
-          this._isSilent = true;
-          this._switchMaterial();
-          this._silenceDuration = 0;
-          this._lastSwitchTime = now;
-        }
-      } else {
-        this._silenceDuration = 0;
-      }
     }
 
     // === SIZE / SCALE ===
@@ -746,33 +567,17 @@ export class SphereVisualizer extends BaseVisualizer {
    * @override
    */
   onDestroy() {
-    // Dispose sphere geometry (material disposed separately below)
+    // Dispose sphere geometry and material
     if (this._sphere) {
       if (this._sphere.geometry) this._sphere.geometry.dispose();
       this._group?.remove(this._sphere);
       this._sphere = null;
     }
 
-    // Clear envMap references from materials before disposing
-    if (this._materials) {
-      if (this._materials.glass) {
-        this._materials.glass.envMap = null;
-      }
-      if (this._materials.metallic) {
-        this._materials.metallic.envMap = null;
-      }
-
-      // Dispose all cached materials
-      if (this._materials.gradient) this._materials.gradient.dispose();
-      if (this._materials.glass) this._materials.glass.dispose();
-      if (this._materials.metallic) this._materials.metallic.dispose();
-      this._materials = {};
-    }
-
-    // Dispose environment map
-    if (this._envMap) {
-      this._envMap.dispose();
-      this._envMap = null;
+    // Dispose gradient material
+    if (this._gradientMaterial) {
+      this._gradientMaterial.dispose();
+      this._gradientMaterial = null;
     }
 
     // Dispose particles
@@ -793,12 +598,6 @@ export class SphereVisualizer extends BaseVisualizer {
     // Clear sphere arrays and helpers
     this._originalPositions = null;
     this._tempColor = null;
-    this._metallicColors = null;
-
-    // Reset silence detection state
-    this._silenceDuration = 0;
-    this._isSilent = false;
-    this._lastSwitchTime = 0;
 
     if (this._group) {
       this.scene.remove(this._group);
